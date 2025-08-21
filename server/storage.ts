@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Coupon, type InsertCoupon, type EmailAccount, type InsertEmailAccount, type ScanSettings, type InsertScanSettings } from "@shared/schema";
+import { type User, type InsertUser, type Coupon, type InsertCoupon, type SmsAccount, type InsertSmsAccount, type ScanSettings, type InsertScanSettings } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -16,11 +16,11 @@ export interface IStorage {
   updateCoupon(id: string, updates: Partial<InsertCoupon>): Promise<Coupon | undefined>;
   deleteCoupon(id: string): Promise<boolean>;
   
-  // Email account methods
-  getEmailAccounts(): Promise<EmailAccount[]>;
-  createEmailAccount(account: InsertEmailAccount): Promise<EmailAccount>;
-  updateEmailAccount(id: string, updates: Partial<InsertEmailAccount>): Promise<EmailAccount | undefined>;
-  deleteEmailAccount(id: string): Promise<boolean>;
+  // SMS account methods
+  getSmsAccounts(): Promise<SmsAccount[]>;
+  createSmsAccount(account: InsertSmsAccount): Promise<SmsAccount>;
+  updateSmsAccount(id: string, updates: Partial<InsertSmsAccount>): Promise<SmsAccount | undefined>;
+  deleteSmsAccount(id: string): Promise<boolean>;
   
   // Settings methods
   getScanSettings(): Promise<ScanSettings | undefined>;
@@ -30,13 +30,13 @@ export interface IStorage {
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private coupons: Map<string, Coupon>;
-  private emailAccounts: Map<string, EmailAccount>;
+  private smsAccounts: Map<string, SmsAccount>;
   private scanSettings: ScanSettings | undefined;
 
   constructor() {
     this.users = new Map();
     this.coupons = new Map();
-    this.emailAccounts = new Map();
+    this.smsAccounts = new Map();
     this.initializeWithSampleData();
   }
 
@@ -148,7 +148,8 @@ export class MemStorage implements IStorage {
     const coupon: Coupon = { 
       ...insertCoupon, 
       id, 
-      createdAt: new Date()
+      createdAt: new Date(),
+      source: insertCoupon.source || null
     };
     this.coupons.set(id, coupon);
     return coupon;
@@ -167,34 +168,36 @@ export class MemStorage implements IStorage {
     return this.coupons.delete(id);
   }
 
-  // Email account methods
-  async getEmailAccounts(): Promise<EmailAccount[]> {
-    return Array.from(this.emailAccounts.values());
+  // SMS account methods
+  async getSmsAccounts(): Promise<SmsAccount[]> {
+    return Array.from(this.smsAccounts.values());
   }
 
-  async createEmailAccount(insertAccount: InsertEmailAccount): Promise<EmailAccount> {
+  async createSmsAccount(insertAccount: InsertSmsAccount): Promise<SmsAccount> {
     const id = randomUUID();
-    const account: EmailAccount = { 
+    const account: SmsAccount = { 
       ...insertAccount, 
       id, 
       createdAt: new Date(),
-      lastScanAt: null
+      lastScanAt: null,
+      webhookUrl: insertAccount.webhookUrl || null,
+      isConnected: insertAccount.isConnected ?? null
     };
-    this.emailAccounts.set(id, account);
+    this.smsAccounts.set(id, account);
     return account;
   }
 
-  async updateEmailAccount(id: string, updates: Partial<InsertEmailAccount>): Promise<EmailAccount | undefined> {
-    const existingAccount = this.emailAccounts.get(id);
+  async updateSmsAccount(id: string, updates: Partial<InsertSmsAccount>): Promise<SmsAccount | undefined> {
+    const existingAccount = this.smsAccounts.get(id);
     if (!existingAccount) return undefined;
 
     const updatedAccount = { ...existingAccount, ...updates };
-    this.emailAccounts.set(id, updatedAccount);
+    this.smsAccounts.set(id, updatedAccount);
     return updatedAccount;
   }
 
-  async deleteEmailAccount(id: string): Promise<boolean> {
-    return this.emailAccounts.delete(id);
+  async deleteSmsAccount(id: string): Promise<boolean> {
+    return this.smsAccounts.delete(id);
   }
 
   // Settings methods
@@ -204,9 +207,26 @@ export class MemStorage implements IStorage {
 
   async createOrUpdateScanSettings(settings: InsertScanSettings): Promise<ScanSettings> {
     if (this.scanSettings) {
-      this.scanSettings = { ...this.scanSettings, ...settings };
+      this.scanSettings = { 
+        ...this.scanSettings, 
+        ...settings,
+        autoScan: settings.autoScan ?? this.scanSettings.autoScan,
+        scanFrequency: settings.scanFrequency ?? this.scanSettings.scanFrequency,
+        expiryAlerts: settings.expiryAlerts ?? this.scanSettings.expiryAlerts,
+        alertDays: settings.alertDays ?? this.scanSettings.alertDays,
+        exportFormat: settings.exportFormat ?? this.scanSettings.exportFormat,
+        includeCategories: settings.includeCategories ?? this.scanSettings.includeCategories
+      };
     } else {
-      this.scanSettings = { id: randomUUID(), ...settings };
+      this.scanSettings = { 
+        id: randomUUID(), 
+        autoScan: settings.autoScan ?? true,
+        scanFrequency: settings.scanFrequency ?? 6,
+        expiryAlerts: settings.expiryAlerts ?? true,
+        alertDays: settings.alertDays ?? "1,3",
+        exportFormat: settings.exportFormat ?? "xlsx",
+        includeCategories: settings.includeCategories ?? true
+      };
     }
     return this.scanSettings;
   }

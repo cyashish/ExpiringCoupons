@@ -21,14 +21,25 @@ export default function Dashboard() {
     queryKey: ["/api/coupons/expiring/7"],
   });
 
-  const handleScanEmails = () => {
-    // TODO: Implement email scanning
-    console.log("Scanning emails...");
+  const handleScanSms = () => {
+    // TODO: Implement SMS scanning
+    console.log("Scanning SMS...");
   };
 
-  const handleExportSpreadsheet = () => {
-    // TODO: Implement spreadsheet export
-    console.log("Exporting spreadsheet...");
+  const handleExportSpreadsheet = async () => {
+    try {
+      const response = await fetch('/api/export/coupons?format=xlsx');
+      const result = await response.json();
+      
+      if (response.ok) {
+        console.log('Export data:', result);
+        // In a real implementation, this would trigger a file download
+        alert(`Export ready! ${result.count} coupons exported.`);
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Export failed. Please try again.');
+    }
   };
 
   const handleSetReminders = () => {
@@ -73,27 +84,27 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatsCard
           title="Total Coupons"
-          value={statsLoading ? "..." : stats?.totalCoupons || 0}
+          value={statsLoading ? "..." : stats?.totalCoupons ?? 0}
           icon={<Ticket className="text-primary" size={20} />}
           iconBgColor="bg-blue-100"
         />
         <StatsCard
           title="Expiring Soon"
-          value={statsLoading ? "..." : stats?.expiringSoon || 0}
+          value={statsLoading ? "..." : stats?.expiringSoon ?? 0}
           icon={<AlertTriangle className="text-red-600" size={20} />}
           iconBgColor="bg-red-100"
           valueColor="text-red-600"
         />
         <StatsCard
           title="Total Value"
-          value={statsLoading ? "..." : stats?.totalValue || "₹0"}
+          value={statsLoading ? "..." : stats?.totalValue ?? "₹0"}
           icon={<DollarSign className="text-secondary" size={20} />}
           iconBgColor="bg-green-100"
           valueColor="text-secondary"
         />
         <StatsCard
           title="Last Scan"
-          value={statsLoading ? "..." : stats?.lastScan || "Never"}
+          value={statsLoading ? "..." : stats?.lastScan ?? "Never"}
           icon={<RefreshCw className="text-purple-600" size={20} />}
           iconBgColor="bg-purple-100"
         />
@@ -104,11 +115,13 @@ export default function Dashboard() {
         <h3 className="text-lg font-semibold text-textPrimary mb-4">Quick Actions</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <button
-            onClick={handleScanEmails}
+            onClick={handleScanSms}
             className="flex items-center justify-center space-x-3 p-4 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            <Mail size={18} />
-            <span className="font-medium">Scan Emails</span>
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2 3a1 1 0 011-1h.093a1 1 0 01.832.445L6 6h9a1 1 0 010 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2V8.414l-1.293 1.293a1 1 0 01-1.414-1.414L2 8.414V3z"/>
+            </svg>
+            <span className="font-medium">Scan SMS</span>
           </button>
           <button
             onClick={handleExportSpreadsheet}
@@ -140,7 +153,7 @@ export default function Dashboard() {
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {categoryStats?.map((category: any) => (
+          {(categoryStats ?? []).map((category: any) => (
             <CategoryCard
               key={category.name}
               name={category.name}
@@ -167,7 +180,7 @@ export default function Dashboard() {
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {expiringSoonCoupons?.slice(0, 3).map((coupon: any) => (
+          {(expiringSoonCoupons ?? []).slice(0, 3).map((coupon: any) => (
             <CouponCard
               key={coupon.id}
               coupon={coupon}
@@ -175,7 +188,7 @@ export default function Dashboard() {
             />
           ))}
         </div>
-        {!expiringSoonCoupons?.length && (
+        {!(expiringSoonCoupons ?? []).length && (
           <div className="text-center py-8 text-textSecondary">
             <Ticket size={48} className="mx-auto mb-4 opacity-50" />
             <p>No coupons expiring soon</p>

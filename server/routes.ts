@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCouponSchema, insertEmailAccountSchema, insertScanSettingsSchema } from "@shared/schema";
+import { insertCouponSchema, insertSmsAccountSchema, insertScanSettingsSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Coupon routes
@@ -80,35 +80,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Email account routes
-  app.get("/api/email-accounts", async (req, res) => {
+  // SMS account routes
+  app.get("/api/sms-accounts", async (req, res) => {
     try {
-      const accounts = await storage.getEmailAccounts();
+      const accounts = await storage.getSmsAccounts();
       res.json(accounts);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch email accounts" });
+      res.status(500).json({ message: "Failed to fetch SMS accounts" });
     }
   });
 
-  app.post("/api/email-accounts", async (req, res) => {
+  app.post("/api/sms-accounts", async (req, res) => {
     try {
-      const validatedData = insertEmailAccountSchema.parse(req.body);
-      const account = await storage.createEmailAccount(validatedData);
+      const validatedData = insertSmsAccountSchema.parse(req.body);
+      const account = await storage.createSmsAccount(validatedData);
       res.status(201).json(account);
     } catch (error: any) {
-      res.status(400).json({ message: error.message || "Failed to create email account" });
+      res.status(400).json({ message: error.message || "Failed to create SMS account" });
     }
   });
 
-  app.delete("/api/email-accounts/:id", async (req, res) => {
+  app.delete("/api/sms-accounts/:id", async (req, res) => {
     try {
-      const deleted = await storage.deleteEmailAccount(req.params.id);
+      const deleted = await storage.deleteSmsAccount(req.params.id);
       if (!deleted) {
-        return res.status(404).json({ message: "Email account not found" });
+        return res.status(404).json({ message: "SMS account not found" });
       }
       res.status(204).send();
     } catch (error) {
-      res.status(500).json({ message: "Failed to delete email account" });
+      res.status(500).json({ message: "Failed to delete SMS account" });
     }
   });
 
@@ -190,14 +190,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Email scanning endpoint (placeholder for future Gmail API integration)
-  app.post("/api/scan-emails", async (req, res) => {
+  // SMS scanning endpoint (webhook or API integration)
+  app.post("/api/scan-sms", async (req, res) => {
     try {
-      // TODO: Implement actual email scanning logic
-      // This would integrate with Gmail API or other email providers
-      res.json({ message: "Email scan initiated", status: "success" });
+      // TODO: Implement actual SMS scanning logic
+      // This would integrate with Twilio webhooks or other SMS providers
+      res.json({ message: "SMS scan initiated", status: "success" });
     } catch (error) {
-      res.status(500).json({ message: "Failed to initiate email scan" });
+      res.status(500).json({ message: "Failed to initiate SMS scan" });
+    }
+  });
+
+  // Webhook endpoint for receiving SMS data
+  app.post("/api/webhooks/sms", async (req, res) => {
+    try {
+      // TODO: Parse incoming SMS data and extract coupon information
+      // This would be called by SMS providers like Twilio
+      const { from, body } = req.body;
+      
+      // Extract coupon information from SMS body
+      // For now, just acknowledge receipt
+      res.json({ message: "SMS webhook processed", status: "success" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to process SMS webhook" });
+    }
+  });
+
+  // Export coupons endpoint
+  app.get("/api/export/coupons", async (req, res) => {
+    try {
+      const { format = 'xlsx' } = req.query;
+      const allCoupons = await storage.getCoupons();
+      
+      // For demonstration, return JSON data
+      // In a real implementation, this would generate Excel/CSV files
+      const exportData = allCoupons.map(coupon => ({
+        Code: coupon.code,
+        Merchant: coupon.merchant,
+        Category: coupon.category,
+        Value: coupon.value,
+        Description: coupon.description || '',
+        'Minimum Amount': coupon.minimumAmount || '',
+        'Expiry Date': coupon.expiryDate.toLocaleDateString(),
+        Status: coupon.isActive ? 'Active' : 'Inactive',
+        Source: coupon.source || 'Manual',
+        'Usage Instructions': coupon.usageInstructions || ''
+      }));
+      
+      res.json({
+        message: "Export data prepared",
+        format,
+        data: exportData,
+        count: exportData.length
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to export coupons" });
     }
   });
 

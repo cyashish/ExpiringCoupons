@@ -6,15 +6,15 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Settings() {
-  const [newEmailData, setNewEmailData] = useState({ email: "", provider: "gmail" });
+  const [newSmsData, setNewSmsData] = useState({ phoneNumber: "", provider: "twilio", webhookUrl: "" });
   const { toast } = useToast();
 
   const { data: settings } = useQuery({
     queryKey: ["/api/settings"],
   });
 
-  const { data: emailAccounts } = useQuery({
-    queryKey: ["/api/email-accounts"],
+  const { data: smsAccounts } = useQuery({
+    queryKey: ["/api/sms-accounts"],
   });
 
   const updateSettingsMutation = useMutation({
@@ -35,32 +35,32 @@ export default function Settings() {
     },
   });
 
-  const addEmailMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/email-accounts", data),
+  const addSmsMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/sms-accounts", data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/email-accounts"] });
-      setNewEmailData({ email: "", provider: "gmail" });
+      queryClient.invalidateQueries({ queryKey: ["/api/sms-accounts"] });
+      setNewSmsData({ phoneNumber: "", provider: "twilio", webhookUrl: "" });
       toast({
-        title: "Email Added",
-        description: "Email account connected successfully",
+        title: "SMS Account Added",
+        description: "SMS account connected successfully",
       });
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to add email account",
+        description: "Failed to add SMS account",
         variant: "destructive",
       });
     },
   });
 
-  const deleteEmailMutation = useMutation({
-    mutationFn: (accountId: string) => apiRequest("DELETE", `/api/email-accounts/${accountId}`),
+  const deleteSmsMutation = useMutation({
+    mutationFn: (accountId: string) => apiRequest("DELETE", `/api/sms-accounts/${accountId}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/email-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sms-accounts"] });
       toast({
-        title: "Email Removed",
-        description: "Email account disconnected successfully",
+        title: "SMS Account Removed",
+        description: "SMS account disconnected successfully",
       });
     },
   });
@@ -69,12 +69,12 @@ export default function Settings() {
     updateSettingsMutation.mutate({ [key]: value });
   };
 
-  const handleAddEmail = (e: React.FormEvent) => {
+  const handleAddSms = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newEmailData.email) return;
+    if (!newSmsData.phoneNumber) return;
     
-    addEmailMutation.mutate({
-      ...newEmailData,
+    addSmsMutation.mutate({
+      ...newSmsData,
       isConnected: true,
     });
   };
@@ -84,19 +84,26 @@ export default function Settings() {
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-textPrimary mb-4">Settings</h2>
         
-        {/* Email Integration */}
+        {/* SMS Integration */}
         <div className="bg-surface rounded-lg p-6 shadow-sm border border-gray-200 mb-6">
-          <h3 className="text-lg font-semibold text-textPrimary mb-4">Email Integration</h3>
+          <h3 className="text-lg font-semibold text-textPrimary mb-4">SMS Integration</h3>
+          <p className="text-sm text-textSecondary mb-4">
+            Connect your phone number to automatically scan SMS messages for coupon codes. 
+            We use secure webhook integration - no credentials are stored.
+          </p>
           <div className="space-y-4">
-            {emailAccounts?.map((account: any) => (
+            {(smsAccounts ?? []).map((account: any) => (
               <div key={account.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                    <span className="text-red-600 font-bold text-sm">G</span>
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <span className="text-blue-600 font-bold text-sm">📱</span>
                   </div>
                   <div>
                     <div className="font-medium text-textPrimary">{account.provider}</div>
-                    <div className="text-sm text-textSecondary">{account.email}</div>
+                    <div className="text-sm text-textSecondary">{account.phoneNumber}</div>
+                    {account.webhookUrl && (
+                      <div className="text-xs text-textSecondary mt-1">Webhook configured</div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
@@ -104,9 +111,9 @@ export default function Settings() {
                     Connected
                   </span>
                   <button
-                    onClick={() => deleteEmailMutation.mutate(account.id)}
+                    onClick={() => deleteSmsMutation.mutate(account.id)}
                     className="text-red-600 hover:text-red-700"
-                    disabled={deleteEmailMutation.isPending}
+                    disabled={deleteSmsMutation.isPending}
                   >
                     <Unlink size={16} />
                   </button>
@@ -114,34 +121,45 @@ export default function Settings() {
               </div>
             ))}
             
-            <form onSubmit={handleAddEmail} className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg">
+            <form onSubmit={handleAddSms} className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg">
               <div className="flex items-center space-x-3 mb-4">
                 <Plus className="text-textSecondary" size={20} />
-                <span className="text-textSecondary">Add Another Email Account</span>
+                <span className="text-textSecondary">Add SMS Account</span>
               </div>
-              <div className="flex gap-3">
-                <input
-                  type="email"
-                  placeholder="Enter email address"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                  value={newEmailData.email}
-                  onChange={(e) => setNewEmailData({ ...newEmailData, email: e.target.value })}
-                />
-                <select
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                  value={newEmailData.provider}
-                  onChange={(e) => setNewEmailData({ ...newEmailData, provider: e.target.value })}
-                >
-                  <option value="gmail">Gmail</option>
-                  <option value="outlook">Outlook</option>
-                  <option value="yahoo">Yahoo</option>
-                </select>
+              <div className="space-y-3">
+                <div className="flex gap-3">
+                  <input
+                    type="tel"
+                    placeholder="Enter phone number"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                    value={newSmsData.phoneNumber}
+                    onChange={(e) => setNewSmsData({ ...newSmsData, phoneNumber: e.target.value })}
+                  />
+                  <select
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                    value={newSmsData.provider}
+                    onChange={(e) => setNewSmsData({ ...newSmsData, provider: e.target.value })}
+                  >
+                    <option value="twilio">Twilio</option>
+                    <option value="aws-sns">AWS SNS</option>
+                    <option value="webhook">Custom Webhook</option>
+                  </select>
+                </div>
+                {newSmsData.provider === 'webhook' && (
+                  <input
+                    type="url"
+                    placeholder="Webhook URL (optional)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                    value={newSmsData.webhookUrl}
+                    onChange={(e) => setNewSmsData({ ...newSmsData, webhookUrl: e.target.value })}
+                  />
+                )}
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  disabled={addEmailMutation.isPending}
+                  className="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  disabled={addSmsMutation.isPending}
                 >
-                  Add
+                  Add SMS Account
                 </button>
               </div>
             </form>
@@ -161,7 +179,7 @@ export default function Settings() {
                 <input
                   type="checkbox"
                   className="sr-only peer"
-                  checked={settings?.autoScan || false}
+                  checked={settings?.autoScan ?? false}
                   onChange={(e) => handleSettingChange("autoScan", e.target.checked)}
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
@@ -175,7 +193,7 @@ export default function Settings() {
               </div>
               <select
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                value={settings?.scanFrequency || 6}
+                value={settings?.scanFrequency ?? 6}
                 onChange={(e) => handleSettingChange("scanFrequency", parseInt(e.target.value))}
               >
                 <option value={6}>Every 6 hours</option>
@@ -200,7 +218,7 @@ export default function Settings() {
                 <input
                   type="checkbox"
                   className="sr-only peer"
-                  checked={settings?.expiryAlerts || false}
+                  checked={settings?.expiryAlerts ?? false}
                   onChange={(e) => handleSettingChange("expiryAlerts", e.target.checked)}
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
@@ -218,12 +236,12 @@ export default function Settings() {
                     <input
                       type="checkbox"
                       className="form-checkbox text-primary"
-                      checked={settings?.alertDays?.split(",").includes(days.toString()) || false}
+                      checked={settings?.alertDays?.split(",").includes(days.toString()) ?? false}
                       onChange={(e) => {
-                        const currentDays = settings?.alertDays?.split(",") || [];
+                        const currentDays = settings?.alertDays?.split(",") ?? [];
                         const newDays = e.target.checked
                           ? [...currentDays, days.toString()]
-                          : currentDays.filter(d => d !== days.toString());
+                          : currentDays.filter((d: string) => d !== days.toString());
                         handleSettingChange("alertDays", newDays.join(","));
                       }}
                     />
@@ -246,7 +264,7 @@ export default function Settings() {
               </div>
               <select
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                value={settings?.exportFormat || "xlsx"}
+                value={settings?.exportFormat ?? "xlsx"}
                 onChange={(e) => handleSettingChange("exportFormat", e.target.value)}
               >
                 <option value="xlsx">Excel (.xlsx)</option>
@@ -264,7 +282,7 @@ export default function Settings() {
                 <input
                   type="checkbox"
                   className="sr-only peer"
-                  checked={settings?.includeCategories || false}
+                  checked={settings?.includeCategories ?? false}
                   onChange={(e) => handleSettingChange("includeCategories", e.target.checked)}
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>

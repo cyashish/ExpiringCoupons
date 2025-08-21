@@ -70,7 +70,7 @@ export default function Categories() {
 
       {/* Categories Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {categoryStats?.map((category: any) => (
+        {(categoryStats ?? []).map((category: any) => (
           <CategoryCard
             key={category.name}
             name={getCategoryDisplayName(category.name)}
@@ -84,10 +84,10 @@ export default function Categories() {
       </div>
 
       {/* Recent Coupons by Category */}
-      {categoryStats?.map((category: any) => {
-        const categoryCoupons = allCoupons?.filter((coupon: any) => 
+      {(categoryStats ?? []).map((category: any) => {
+        const categoryCoupons = (allCoupons ?? []).filter((coupon: any) => 
           coupon.category === category.name
-        ).slice(0, 3) || [];
+        ).slice(0, 3);
 
         if (categoryCoupons.length === 0) return null;
 
@@ -118,7 +118,7 @@ export default function Categories() {
         );
       })}
 
-      {!categoryStats?.length && (
+      {!(categoryStats ?? []).length && (
         <div className="text-center py-12 text-textSecondary">
           <div className="text-4xl mb-4">📂</div>
           <p className="text-lg font-medium mb-2">No categories found</p>
