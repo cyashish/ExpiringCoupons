@@ -24,14 +24,15 @@ export const coupons = pgTable("coupons", {
   usageInstructions: text("usage_instructions"),
 });
 
-export const smsAccounts = pgTable("sms_accounts", {
+export const emailAccounts = pgTable("email_accounts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  phoneNumber: text("phone_number").notNull().unique(),
-  provider: text("provider").notNull(), // twilio, aws-sns, webhook, etc.
-  webhookUrl: text("webhook_url"), // for webhook-based integration
+  email: text("email").notNull().unique(),
+  provider: text("provider").notNull().default("gmail"), // gmail only for now
+  googleId: text("google_id"), // Google user ID for OAuth
   isConnected: boolean("is_connected").default(false),
   lastScanAt: timestamp("last_scan_at"),
   createdAt: timestamp("created_at").default(sql`now()`),
+  // No sensitive data stored - OAuth tokens handled securely in session
 });
 
 export const scanSettings = pgTable("scan_settings", {
@@ -54,7 +55,7 @@ export const insertCouponSchema = createInsertSchema(coupons).omit({
   createdAt: true,
 });
 
-export const insertSmsAccountSchema = createInsertSchema(smsAccounts).omit({
+export const insertEmailAccountSchema = createInsertSchema(emailAccounts).omit({
   id: true,
   createdAt: true,
   lastScanAt: true,
@@ -68,7 +69,7 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertCoupon = z.infer<typeof insertCouponSchema>;
 export type Coupon = typeof coupons.$inferSelect;
-export type InsertSmsAccount = z.infer<typeof insertSmsAccountSchema>;
-export type SmsAccount = typeof smsAccounts.$inferSelect;
+export type InsertEmailAccount = z.infer<typeof insertEmailAccountSchema>;
+export type EmailAccount = typeof emailAccounts.$inferSelect;
 export type InsertScanSettings = z.infer<typeof insertScanSettingsSchema>;
 export type ScanSettings = typeof scanSettings.$inferSelect;

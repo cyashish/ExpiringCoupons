@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCouponSchema, insertSmsAccountSchema, insertScanSettingsSchema } from "@shared/schema";
+import { insertCouponSchema, insertEmailAccountSchema, insertScanSettingsSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Coupon routes
@@ -80,35 +80,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // SMS account routes
-  app.get("/api/sms-accounts", async (req, res) => {
+  // Email account routes (OAuth-based)
+  app.get("/api/email-accounts", async (req, res) => {
     try {
-      const accounts = await storage.getSmsAccounts();
+      const accounts = await storage.getEmailAccounts();
       res.json(accounts);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch SMS accounts" });
+      res.status(500).json({ message: "Failed to fetch email accounts" });
     }
   });
 
-  app.post("/api/sms-accounts", async (req, res) => {
+  // OAuth initiation endpoint
+  app.get("/api/auth/gmail", async (req, res) => {
     try {
-      const validatedData = insertSmsAccountSchema.parse(req.body);
-      const account = await storage.createSmsAccount(validatedData);
+      // TODO: Implement Google OAuth 2.0 flow initiation
+      // This would redirect to Google's consent screen
+      const authUrl = "https://accounts.google.com/oauth/authorize?" +
+        "client_id=YOUR_CLIENT_ID&" +
+        "redirect_uri=YOUR_REDIRECT_URI&" +
+        "scope=https://www.googleapis.com/auth/gmail.readonly&" +
+        "response_type=code&" +
+        "access_type=offline";
+      
+      res.json({ authUrl, message: "Redirect to Google OAuth" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to initiate Gmail OAuth" });
+    }
+  });
+
+  // OAuth callback endpoint
+  app.post("/api/auth/gmail/callback", async (req, res) => {
+    try {
+      // TODO: Handle OAuth callback and exchange code for tokens
+      const { code, email } = req.body;
+      
+      // In real implementation:
+      // 1. Exchange code for access/refresh tokens
+      // 2. Get user info from Google
+      // 3. Store only non-sensitive account info
+      
+      const account = await storage.createEmailAccount({
+        email: email || "user@gmail.com",
+        provider: "gmail",
+        googleId: "mock-google-id",
+        isConnected: true
+      });
+      
       res.status(201).json(account);
     } catch (error: any) {
-      res.status(400).json({ message: error.message || "Failed to create SMS account" });
+      res.status(400).json({ message: error.message || "Failed to connect Gmail account" });
     }
   });
 
-  app.delete("/api/sms-accounts/:id", async (req, res) => {
+  app.delete("/api/email-accounts/:id", async (req, res) => {
     try {
-      const deleted = await storage.deleteSmsAccount(req.params.id);
+      const deleted = await storage.deleteEmailAccount(req.params.id);
       if (!deleted) {
-        return res.status(404).json({ message: "SMS account not found" });
+        return res.status(404).json({ message: "Email account not found" });
       }
       res.status(204).send();
     } catch (error) {
-      res.status(500).json({ message: "Failed to delete SMS account" });
+      res.status(500).json({ message: "Failed to delete email account" });
     }
   });
 
@@ -190,29 +222,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // SMS scanning endpoint (webhook or API integration)
-  app.post("/api/scan-sms", async (req, res) => {
+  // Email scanning endpoint (Gmail API integration)
+  app.post("/api/scan-emails", async (req, res) => {
     try {
-      // TODO: Implement actual SMS scanning logic
-      // This would integrate with Twilio webhooks or other SMS providers
-      res.json({ message: "SMS scan initiated", status: "success" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to initiate SMS scan" });
-    }
-  });
-
-  // Webhook endpoint for receiving SMS data
-  app.post("/api/webhooks/sms", async (req, res) => {
-    try {
-      // TODO: Parse incoming SMS data and extract coupon information
-      // This would be called by SMS providers like Twilio
-      const { from, body } = req.body;
+      // TODO: Implement Gmail API scanning using stored OAuth tokens
+      // 1. Get connected email accounts
+      // 2. Use Gmail API to search for coupon-related emails
+      // 3. Extract coupon codes using pattern matching
+      // 4. Store found coupons
       
-      // Extract coupon information from SMS body
-      // For now, just acknowledge receipt
-      res.json({ message: "SMS webhook processed", status: "success" });
+      const accounts = await storage.getEmailAccounts();
+      const connectedAccounts = accounts.filter(acc => acc.isConnected);
+      
+      if (connectedAccounts.length === 0) {
+        return res.status(400).json({ message: "No connected email accounts found" });
+      }
+      
+      // Mock scanning result for now
+      res.json({ 
+        message: "Email scan initiated", 
+        status: "success",
+        accountsScanned: connectedAccounts.length,
+        timestamp: new Date().toISOString()
+      });
     } catch (error) {
-      res.status(500).json({ message: "Failed to process SMS webhook" });
+      res.status(500).json({ message: "Failed to initiate email scan" });
     }
   });
 

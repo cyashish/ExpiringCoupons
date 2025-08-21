@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Coupon, type InsertCoupon, type SmsAccount, type InsertSmsAccount, type ScanSettings, type InsertScanSettings } from "@shared/schema";
+import { type User, type InsertUser, type Coupon, type InsertCoupon, type EmailAccount, type InsertEmailAccount, type ScanSettings, type InsertScanSettings } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -16,11 +16,11 @@ export interface IStorage {
   updateCoupon(id: string, updates: Partial<InsertCoupon>): Promise<Coupon | undefined>;
   deleteCoupon(id: string): Promise<boolean>;
   
-  // SMS account methods
-  getSmsAccounts(): Promise<SmsAccount[]>;
-  createSmsAccount(account: InsertSmsAccount): Promise<SmsAccount>;
-  updateSmsAccount(id: string, updates: Partial<InsertSmsAccount>): Promise<SmsAccount | undefined>;
-  deleteSmsAccount(id: string): Promise<boolean>;
+  // Email account methods (OAuth-based, no sensitive data)
+  getEmailAccounts(): Promise<EmailAccount[]>;
+  createEmailAccount(account: InsertEmailAccount): Promise<EmailAccount>;
+  updateEmailAccount(id: string, updates: Partial<InsertEmailAccount>): Promise<EmailAccount | undefined>;
+  deleteEmailAccount(id: string): Promise<boolean>;
   
   // Settings methods
   getScanSettings(): Promise<ScanSettings | undefined>;
@@ -30,13 +30,13 @@ export interface IStorage {
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private coupons: Map<string, Coupon>;
-  private smsAccounts: Map<string, SmsAccount>;
+  private emailAccounts: Map<string, EmailAccount>;
   private scanSettings: ScanSettings | undefined;
 
   constructor() {
     this.users = new Map();
     this.coupons = new Map();
-    this.smsAccounts = new Map();
+    this.emailAccounts = new Map();
     this.initializeWithSampleData();
   }
 
@@ -168,36 +168,36 @@ export class MemStorage implements IStorage {
     return this.coupons.delete(id);
   }
 
-  // SMS account methods
-  async getSmsAccounts(): Promise<SmsAccount[]> {
-    return Array.from(this.smsAccounts.values());
+  // Email account methods (OAuth-based)
+  async getEmailAccounts(): Promise<EmailAccount[]> {
+    return Array.from(this.emailAccounts.values());
   }
 
-  async createSmsAccount(insertAccount: InsertSmsAccount): Promise<SmsAccount> {
+  async createEmailAccount(insertAccount: InsertEmailAccount): Promise<EmailAccount> {
     const id = randomUUID();
-    const account: SmsAccount = { 
+    const account: EmailAccount = { 
       ...insertAccount, 
       id, 
       createdAt: new Date(),
       lastScanAt: null,
-      webhookUrl: insertAccount.webhookUrl || null,
-      isConnected: insertAccount.isConnected ?? null
+      googleId: insertAccount.googleId ?? null,
+      isConnected: insertAccount.isConnected ?? false
     };
-    this.smsAccounts.set(id, account);
+    this.emailAccounts.set(id, account);
     return account;
   }
 
-  async updateSmsAccount(id: string, updates: Partial<InsertSmsAccount>): Promise<SmsAccount | undefined> {
-    const existingAccount = this.smsAccounts.get(id);
+  async updateEmailAccount(id: string, updates: Partial<InsertEmailAccount>): Promise<EmailAccount | undefined> {
+    const existingAccount = this.emailAccounts.get(id);
     if (!existingAccount) return undefined;
 
     const updatedAccount = { ...existingAccount, ...updates };
-    this.smsAccounts.set(id, updatedAccount);
+    this.emailAccounts.set(id, updatedAccount);
     return updatedAccount;
   }
 
-  async deleteSmsAccount(id: string): Promise<boolean> {
-    return this.smsAccounts.delete(id);
+  async deleteEmailAccount(id: string): Promise<boolean> {
+    return this.emailAccounts.delete(id);
   }
 
   // Settings methods

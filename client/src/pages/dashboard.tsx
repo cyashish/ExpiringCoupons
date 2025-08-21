@@ -21,9 +21,20 @@ export default function Dashboard() {
     queryKey: ["/api/coupons/expiring/7"],
   });
 
-  const handleScanSms = () => {
-    // TODO: Implement SMS scanning
-    console.log("Scanning SMS...");
+  const handleScanEmails = async () => {
+    try {
+      const response = await fetch('/api/scan-emails', { method: 'POST' });
+      const result = await response.json();
+      
+      if (response.ok) {
+        alert(`Email scan completed! Scanned ${result.accountsScanned} account(s).`);
+      } else {
+        alert(result.message || 'Scan failed');
+      }
+    } catch (error) {
+      console.error('Scan failed:', error);
+      alert('Email scan failed. Please try again.');
+    }
   };
 
   const handleExportSpreadsheet = async () => {
@@ -115,13 +126,11 @@ export default function Dashboard() {
         <h3 className="text-lg font-semibold text-textPrimary mb-4">Quick Actions</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <button
-            onClick={handleScanSms}
+            onClick={handleScanEmails}
             className="flex items-center justify-center space-x-3 p-4 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M2 3a1 1 0 011-1h.093a1 1 0 01.832.445L6 6h9a1 1 0 010 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2V8.414l-1.293 1.293a1 1 0 01-1.414-1.414L2 8.414V3z"/>
-            </svg>
-            <span className="font-medium">Scan SMS</span>
+            <Mail size={18} />
+            <span className="font-medium">Scan Emails</span>
           </button>
           <button
             onClick={handleExportSpreadsheet}

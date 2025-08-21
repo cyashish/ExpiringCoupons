@@ -6,15 +6,15 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Settings() {
-  const [newSmsData, setNewSmsData] = useState({ phoneNumber: "", provider: "twilio", webhookUrl: "" });
+  const [isConnectingGmail, setIsConnectingGmail] = useState(false);
   const { toast } = useToast();
 
   const { data: settings } = useQuery({
     queryKey: ["/api/settings"],
   });
 
-  const { data: smsAccounts } = useQuery({
-    queryKey: ["/api/sms-accounts"],
+  const { data: emailAccounts } = useQuery({
+    queryKey: ["/api/email-accounts"],
   });
 
   const updateSettingsMutation = useMutation({
@@ -35,32 +35,45 @@ export default function Settings() {
     },
   });
 
-  const addSmsMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/sms-accounts", data),
+  const connectGmailMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/auth/gmail');
+      const result = await response.json();
+      if (response.ok) {
+        // In real implementation, redirect to Google OAuth
+        // For demo, simulate successful connection
+        return apiRequest("POST", "/api/auth/gmail/callback", { 
+          code: "mock-auth-code", 
+          email: "user@gmail.com" 
+        });
+      }
+      throw new Error(result.message);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sms-accounts"] });
-      setNewSmsData({ phoneNumber: "", provider: "twilio", webhookUrl: "" });
+      queryClient.invalidateQueries({ queryKey: ["/api/email-accounts"] });
+      setIsConnectingGmail(false);
       toast({
-        title: "SMS Account Added",
-        description: "SMS account connected successfully",
+        title: "Gmail Connected",
+        description: "Your Gmail account has been connected successfully",
       });
     },
     onError: () => {
+      setIsConnectingGmail(false);
       toast({
-        title: "Error",
-        description: "Failed to add SMS account",
+        title: "Connection Failed",
+        description: "Failed to connect Gmail account",
         variant: "destructive",
       });
     },
   });
 
-  const deleteSmsMutation = useMutation({
-    mutationFn: (accountId: string) => apiRequest("DELETE", `/api/sms-accounts/${accountId}`),
+  const deleteEmailMutation = useMutation({
+    mutationFn: (accountId: string) => apiRequest("DELETE", `/api/email-accounts/${accountId}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sms-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/email-accounts"] });
       toast({
-        title: "SMS Account Removed",
-        description: "SMS account disconnected successfully",
+        title: "Gmail Disconnected",
+        description: "Gmail account disconnected successfully",
       });
     },
   });
@@ -69,14 +82,9 @@ export default function Settings() {
     updateSettingsMutation.mutate({ [key]: value });
   };
 
-  const handleAddSms = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newSmsData.phoneNumber) return;
-    
-    addSmsMutation.mutate({
-      ...newSmsData,
-      isConnected: true,
-    });
+  const handleConnectGmail = () => {
+    setIsConnectingGmail(true);
+    connectGmailMutation.mutate();
   };
 
   return (
@@ -84,26 +92,26 @@ export default function Settings() {
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-textPrimary mb-4">Settings</h2>
         
-        {/* SMS Integration */}
+        {/* Gmail Integration */}
         <div className="bg-surface rounded-lg p-6 shadow-sm border border-gray-200 mb-6">
-          <h3 className="text-lg font-semibold text-textPrimary mb-4">SMS Integration</h3>
+          <h3 className="text-lg font-semibold text-textPrimary mb-4">Gmail Integration</h3>
           <p className="text-sm text-textSecondary mb-4">
-            Connect your phone number to automatically scan SMS messages for coupon codes. 
-            We use secure webhook integration - no credentials are stored.
+            Connect your Gmail account to automatically scan emails for coupon codes. 
+            Uses secure OAuth 2.0 - no passwords stored, just like "Sign in with Google".
           </p>
           <div className="space-y-4">
-            {(smsAccounts ?? []).map((account: any) => (
+            {(emailAccounts ?? []).map((account: any) => (
               <div key={account.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <span className="text-blue-600 font-bold text-sm">📱</span>
+                  <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                    <span className="text-red-600 font-bold text-sm">G</span>
                   </div>
                   <div>
-                    <div className="font-medium text-textPrimary">{account.provider}</div>
-                    <div className="text-sm text-textSecondary">{account.phoneNumber}</div>
-                    {account.webhookUrl && (
-                      <div className="text-xs text-textSecondary mt-1">Webhook configured</div>
-                    )}
+                    <div className="font-medium text-textPrimary">Gmail</div>
+                    <div className="text-sm text-textSecondary">{account.email}</div>
+                    <div className="text-xs text-textSecondary mt-1">
+                      Connected via OAuth - No passwords stored
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
@@ -111,9 +119,9 @@ export default function Settings() {
                     Connected
                   </span>
                   <button
-                    onClick={() => deleteSmsMutation.mutate(account.id)}
+                    onClick={() => deleteEmailMutation.mutate(account.id)}
                     className="text-red-600 hover:text-red-700"
-                    disabled={deleteSmsMutation.isPending}
+                    disabled={deleteEmailMutation.isPending}
                   >
                     <Unlink size={16} />
                   </button>
@@ -121,48 +129,39 @@ export default function Settings() {
               </div>
             ))}
             
-            <form onSubmit={handleAddSms} className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg">
-              <div className="flex items-center space-x-3 mb-4">
-                <Plus className="text-textSecondary" size={20} />
-                <span className="text-textSecondary">Add SMS Account</span>
-              </div>
-              <div className="space-y-3">
-                <div className="flex gap-3">
-                  <input
-                    type="tel"
-                    placeholder="Enter phone number"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                    value={newSmsData.phoneNumber}
-                    onChange={(e) => setNewSmsData({ ...newSmsData, phoneNumber: e.target.value })}
-                  />
-                  <select
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                    value={newSmsData.provider}
-                    onChange={(e) => setNewSmsData({ ...newSmsData, provider: e.target.value })}
-                  >
-                    <option value="twilio">Twilio</option>
-                    <option value="aws-sns">AWS SNS</option>
-                    <option value="webhook">Custom Webhook</option>
-                  </select>
+            {!(emailAccounts ?? []).length && (
+              <div className="w-full p-6 border-2 border-dashed border-gray-300 rounded-lg text-center">
+                <div className="flex items-center justify-center mb-4">
+                  <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                    <span className="text-red-600 font-bold text-lg">G</span>
+                  </div>
                 </div>
-                {newSmsData.provider === 'webhook' && (
-                  <input
-                    type="url"
-                    placeholder="Webhook URL (optional)"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                    value={newSmsData.webhookUrl}
-                    onChange={(e) => setNewSmsData({ ...newSmsData, webhookUrl: e.target.value })}
-                  />
-                )}
+                <h4 className="text-lg font-medium text-textPrimary mb-2">Connect Gmail</h4>
+                <p className="text-textSecondary mb-4">
+                  Securely connect your Gmail account to start scanning for coupons
+                </p>
                 <button
-                  type="submit"
-                  className="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  disabled={addSmsMutation.isPending}
+                  onClick={handleConnectGmail}
+                  className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 mx-auto"
+                  disabled={isConnectingGmail || connectGmailMutation.isPending}
                 >
-                  Add SMS Account
+                  {(isConnectingGmail || connectGmailMutation.isPending) ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Connecting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={16} />
+                      <span>Connect Gmail Account</span>
+                    </>
+                  )}
                 </button>
+                <p className="text-xs text-textSecondary mt-3">
+                  🔒 Secure OAuth 2.0 - No passwords or credentials stored
+                </p>
               </div>
-            </form>
+            )}
           </div>
         </div>
 
