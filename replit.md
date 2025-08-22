@@ -80,7 +80,15 @@ The application uses four main entities:
 - **zod**: Schema validation for type-safe data handling
 - **wouter**: Lightweight React router
 
-### Planned Integrations
-- **Email Providers**: Gmail, Outlook API integration for coupon scanning
-- **Export Functionality**: Excel/CSV export capabilities
-- **Notification System**: Email/SMS alerts for expiring coupons
+### Deployment Configuration
+- **Netlify Ready**: Configured for Netlify deployment with serverless functions
+- **Build Command**: `npm run build` (Vite builds frontend to `/dist`)
+- **Serverless Backend**: Express routes converted to Netlify Functions
+- **Redirects**: API routes automatically redirect to `/.netlify/functions/api/*`
+- **No Custom Domain Required**: Deploys to `https://[site-name].netlify.app`
+
+### Integrations Implemented
+- **Gmail OAuth Integration**: Secure SSO-style authentication (no passwords stored)
+- **Export Functionality**: Spreadsheet export for coupon data
+- **Category Management**: Automatic organization by merchant type
+- **Alert System**: Configurable expiry notifications
